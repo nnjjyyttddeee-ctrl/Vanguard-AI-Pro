@@ -58,3 +58,69 @@ class SMCAnalyzer:
             return "BEARISH_BOS"
 
         return None
+
+    def detect_choch(self):
+
+        trend = self.detect_trend()
+        bos = self.detect_bos()
+
+        if trend == "BULLISH" and bos == "BEARISH_BOS":
+            return "BEARISH_CHOCH"
+
+        if trend == "BEARISH" and bos == "BULLISH_BOS":
+            return "BULLISH_CHOCH"
+
+        return None
+
+    def detect_fvg(self):
+
+        gaps = []
+
+        for i in range(2, len(self.df)):
+
+            high1 = self.df["high"].iloc[i - 2]
+            low3 = self.df["low"].iloc[i]
+
+            low1 = self.df["low"].iloc[i - 2]
+            high3 = self.df["high"].iloc[i]
+
+            if low3 > high1:
+                gaps.append({
+                    "type": "BULLISH",
+                    "index": i,
+                    "top": low3,
+                    "bottom": high1
+                })
+
+            elif high3 < low1:
+                gaps.append({
+                    "type": "BEARISH",
+                    "index": i,
+                    "top": low1,
+                    "bottom": high3
+                })
+
+        return gaps
+
+    def detect_liquidity(self, tolerance=0.10):
+
+        highs, lows = self.detect_swings()
+
+        equal_highs = []
+        equal_lows = []
+
+        for i in range(1, len(highs)):
+            h1 = self.df["high"].iloc[highs[i - 1]]
+            h2 = self.df["high"].iloc[highs[i]]
+
+            if abs(h1 - h2) <= tolerance:
+                equal_highs.append(highs[i])
+
+        for i in range(1, len(lows)):
+            l1 = self.df["low"].iloc[lows[i - 1]]
+            l2 = self.df["low"].iloc[lows[i]]
+
+            if abs(l1 - l2) <= tolerance:
+                equal_lows.append(lows[i])
+
+        return equal_highs, equal_lows
