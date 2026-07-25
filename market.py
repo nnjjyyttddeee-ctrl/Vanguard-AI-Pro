@@ -1,42 +1,51 @@
 import requests
 import pandas as pd
+from config import TWELVE_API_KEY
+
 
 class MarketData:
 
-    def __init__(self, api_key):
+    BASE_URL = "https://api.twelvedata.com/time_series"
+
+    def __init__(self, api_key=TWELVE_API_KEY):
         self.api_key = api_key
 
     def get_candles(self, symbol="XAU/USD", interval="5min", outputsize=500):
 
-        url = (
-            f"https://api.twelvedata.com/time_series"
-            f"?symbol={symbol}"
-            f"&interval={interval}"
-            f"&outputsize={outputsize}"
-            f"&apikey={self.api_key}"
-        )
+        params = {
+            "symbol": symbol,
+            "interval": interval,
+            "outputsize": outputsize,
+            "apikey": self.api_key,
+        }
 
-        response = requests.get(url)
+        try:
+            response = requests.get(self.BASE_URL, params=params, timeout=15)
+            response.raise_for_status()
 
-        if response.status_code != 200:
+            data = response.json()
+
+            if "values" not in data:
+                print("API Error:", data)
+                return None
+
+            df = pd.DataFrame(data["values"])
+
+            df = df.rename(columns={"datetime": "time"})
+            df = df.iloc[::-1].reset_index(drop=True)
+
+            numeric = ["open", "high", "low", "close"]
+
+            for col in numeric:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+
+            if "volume" in df.columns:
+                df["volume"] = pd.to_numeric(df["volume"], errors="coerce")
+
+            df = df.dropna()
+
+            return df
+
+        except Exception as e:
+            print(f"Market Error: {e}")
             return None
-
-        data = response.json()
-
-        if "values" not in data:
-            return None
-
-        df = pd.DataFrame(data["values"])
-
-        df = df.rename(columns={
-            "datetime": "time"
-        })
-
-        df = df.iloc[::-1].reset_index(drop=True)
-
-        numeric = ["open", "high", "low", "close"]
-
-        for col in numeric:
-            df[col] = df[col].astype(float)
-
-        return df
